@@ -8,37 +8,37 @@ let updatesState = {
     lastFetched: null
 };
 
-// DOM Elements
+// DOM Elements (Lazily evaluated via getters for null-safety)
 const elements = {
-    btnRefresh: document.getElementById('btn-refresh'),
-    btnThemeToggle: document.getElementById('btn-theme-toggle'),
-    btnExport: document.getElementById('btn-export'),
-    btnRetry: document.getElementById('btn-retry'),
-    lastUpdated: document.getElementById('last-updated'),
-    searchInput: document.getElementById('search-input'),
-    clearSearch: document.getElementById('clear-search'),
-    filterTabs: document.getElementById('filter-tabs'),
-    updatesFeed: document.getElementById('updates-feed'),
-    loadingSpinner: document.getElementById('loading-spinner'),
-    errorAlert: document.getElementById('error-alert'),
-    errorMessage: document.getElementById('error-message'),
-    emptyState: document.getElementById('empty-state'),
+    get btnRefresh() { return document.getElementById('btn-refresh'); },
+    get btnThemeToggle() { return document.getElementById('btn-theme-toggle'); },
+    get btnExport() { return document.getElementById('btn-export'); },
+    get btnRetry() { return document.getElementById('btn-retry'); },
+    get lastUpdated() { return document.getElementById('last-updated'); },
+    get searchInput() { return document.getElementById('search-input'); },
+    get clearSearch() { return document.getElementById('clear-search'); },
+    get filterTabs() { return document.getElementById('filter-tabs'); },
+    get updatesFeed() { return document.getElementById('updates-feed'); },
+    get loadingSpinner() { return document.getElementById('loading-spinner'); },
+    get errorAlert() { return document.getElementById('error-alert'); },
+    get errorMessage() { return document.getElementById('error-message'); },
+    get emptyState() { return document.getElementById('empty-state'); },
     
     // Detail Pane Elements
-    noSelectionCard: document.getElementById('no-selection-card'),
-    detailCard: document.getElementById('detail-card'),
-    detailBadge: document.getElementById('detail-badge'),
-    detailDate: document.getElementById('detail-date'),
-    detailTitle: document.getElementById('detail-title'),
-    detailBody: document.getElementById('detail-body'),
-    btnTweet: document.getElementById('btn-tweet'),
-    btnDocLink: document.getElementById('btn-doc-link'),
-    btnCopy: document.getElementById('btn-copy'),
+    get noSelectionCard() { return document.getElementById('no-selection-card'); },
+    get detailCard() { return document.getElementById('detail-card'); },
+    get detailBadge() { return document.getElementById('detail-badge'); },
+    get detailDate() { return document.getElementById('detail-date'); },
+    get detailTitle() { return document.getElementById('detail-title'); },
+    get detailBody() { return document.getElementById('detail-body'); },
+    get btnTweet() { return document.getElementById('btn-tweet'); },
+    get btnDocLink() { return document.getElementById('btn-doc-link'); },
+    get btnCopy() { return document.getElementById('btn-copy'); },
     
     // Toast Notification
-    toast: document.getElementById('toast'),
-    toastMessage: document.getElementById('toast-message'),
-    toastIcon: document.getElementById('toast-icon')
+    get toast() { return document.getElementById('toast'); },
+    get toastMessage() { return document.getElementById('toast-message'); },
+    get toastIcon() { return document.getElementById('toast-icon'); }
 };
 
 // Initialize Application
@@ -51,36 +51,40 @@ document.addEventListener('DOMContentLoaded', () => {
 // Event Listeners Setup
 function initEventListeners() {
     // Refresh button
-    elements.btnRefresh.addEventListener('click', () => fetchUpdates(true));
-    elements.btnRetry.addEventListener('click', () => fetchUpdates(true));
+    if (elements.btnRefresh) elements.btnRefresh.addEventListener('click', () => fetchUpdates(true));
+    if (elements.btnRetry) elements.btnRetry.addEventListener('click', () => fetchUpdates(true));
     
     // Export CSV button
-    elements.btnExport.addEventListener('click', exportToCSV);
+    if (elements.btnExport) elements.btnExport.addEventListener('click', exportToCSV);
     
     // Search input
-    elements.searchInput.addEventListener('input', handleSearch);
-    elements.clearSearch.addEventListener('click', () => {
-        elements.searchInput.value = '';
-        handleSearch();
-    });
+    if (elements.searchInput) elements.searchInput.addEventListener('input', handleSearch);
+    if (elements.clearSearch) {
+        elements.clearSearch.addEventListener('click', () => {
+            if (elements.searchInput) elements.searchInput.value = '';
+            handleSearch();
+        });
+    }
     
     // Category tabs
-    elements.filterTabs.addEventListener('click', (e) => {
-        const tab = e.target.closest('.tab-btn');
-        if (!tab) return;
-        
-        // Remove active class from all tabs
-        elements.filterTabs.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        // Add active class to clicked tab
-        tab.classList.add('active');
-        
-        updatesState.activeCategory = tab.dataset.category;
-        filterAndRender();
-    });
+    if (elements.filterTabs) {
+        elements.filterTabs.addEventListener('click', (e) => {
+            const tab = e.target.closest('.tab-btn');
+            if (!tab) return;
+            
+            // Remove active class from all tabs
+            elements.filterTabs.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to clicked tab
+            tab.classList.add('active');
+            
+            updatesState.activeCategory = tab.dataset.category;
+            filterAndRender();
+        });
+    }
     
     // Detail panel actions
-    elements.btnTweet.addEventListener('click', tweetSelectedUpdate);
-    elements.btnCopy.addEventListener('click', copySelectedUpdateText);
+    if (elements.btnTweet) elements.btnTweet.addEventListener('click', tweetSelectedUpdate);
+    if (elements.btnCopy) elements.btnCopy.addEventListener('click', copySelectedUpdateText);
 }
 
 // Fetch updates from Backend API
@@ -348,16 +352,17 @@ function exportToCSV() {
         return;
     }
     
+    // CSV column escape utility
+    const escapeCsv = (text) => {
+        if (text === null || text === undefined) return '';
+        const stringified = String(text);
+        return `"${stringified.replace(/"/g, '""')}"`;
+    };
+    
     // Header
     let csvContent = "Date,Type,Text,Link\n";
     
     filtered.forEach(update => {
-        const escapeCsv = (text) => {
-            if (text === null || text === undefined) return '';
-            const stringified = String(text);
-            return `"${stringified.replace(/"/g, '""')}"`;
-        };
-        
         const row = [
             escapeCsv(update.date),
             escapeCsv(update.type),
@@ -368,8 +373,8 @@ function exportToCSV() {
         csvContent += row + "\n";
     });
     
-    // Create Blob and trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Create Blob with BOM (\uFEFF) to guarantee proper UTF-8 parsing in Excel
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     
@@ -383,19 +388,31 @@ function exportToCSV() {
     }
     filename += ".csv";
     
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = 'hidden';
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
+    // Clean up memory
+    setTimeout(() => {
+        URL.revokeObjectURL(url);
+    }, 100);
+    
     showToast(`Exported ${filtered.length} updates!`, "fa-file-excel", "#10b981");
 }
 
-// Dark/Light Theme Initialization
+// Dark/Light Theme Initialization (Safe from localStorage access blockages)
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    let savedTheme = 'dark';
+    try {
+        savedTheme = localStorage.getItem('theme') || 'dark';
+    } catch (e) {
+        console.warn("localStorage is blocked or unavailable, defaulting to dark theme:", e);
+    }
+    
     if (savedTheme === 'light') {
         document.body.classList.add('light-theme');
         updateThemeIcon('light');
@@ -404,17 +421,26 @@ function initTheme() {
         updateThemeIcon('dark');
     }
     
-    elements.btnThemeToggle.addEventListener('click', () => {
-        const isLight = document.body.classList.toggle('light-theme');
-        const newTheme = isLight ? 'light' : 'dark';
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme);
-    });
+    if (elements.btnThemeToggle) {
+        elements.btnThemeToggle.addEventListener('click', () => {
+            const isLight = document.body.classList.toggle('light-theme');
+            const newTheme = isLight ? 'light' : 'dark';
+            try {
+                localStorage.setItem('theme', newTheme);
+            } catch (e) {
+                console.warn("localStorage is blocked or unavailable:", e);
+            }
+            updateThemeIcon(newTheme);
+        });
+    }
 }
 
 // Update Theme Toggle Button Icon
 function updateThemeIcon(theme) {
+    if (!elements.btnThemeToggle) return;
     const themeIcon = elements.btnThemeToggle.querySelector('i');
+    if (!themeIcon) return;
+    
     if (theme === 'light') {
         themeIcon.className = 'fa-solid fa-sun';
     } else {
