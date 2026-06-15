@@ -195,6 +195,11 @@ function renderFeed() {
         card.dataset.id = update.id;
         card.dataset.type = update.type;
         
+        // Accessibility Attributes (Heuristic Improvement #1)
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', `${update.type} update from ${update.date}`);
+        
         // Determine correct badge class
         let badgeClass = 'badge-default';
         const typeLower = update.type.toLowerCase();
@@ -230,7 +235,15 @@ function renderFeed() {
             copyUpdateTextById(update.id);
         });
         
+        // Click and Keyboard navigation triggers (Heuristic Improvement #1)
         card.addEventListener('click', () => selectUpdate(update.id));
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault(); // Prevent browser scrolling on Spacebar keypress
+                selectUpdate(update.id);
+            }
+        });
+        
         elements.updatesFeed.appendChild(card);
     });
 }
