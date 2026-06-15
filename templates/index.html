@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Explorer</title>
+    <!-- Google Fonts - Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>BigQuery</h1>
+                    <span>Release Explorer</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <span id="last-updated" class="timestamp">Last updated: Never</span>
+                <button id="btn-refresh" class="btn btn-secondary" title="Refresh Release Notes">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <main class="main-layout">
+            <!-- Left Side: Controls & Feed -->
+            <section class="feed-section">
+                <!-- Search and Filters -->
+                <div class="filter-card">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Search updates (e.g. Gemini, external tables)...">
+                        <button id="clear-search" class="clear-btn" style="display: none;">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="filter-tabs" id="filter-tabs">
+                        <button class="tab-btn active" data-category="all">All</button>
+                        <button class="tab-btn" data-category="Feature">
+                            <span class="dot dot-feature"></span>Features
+                        </button>
+                        <button class="tab-btn" data-category="Changed">
+                            <span class="dot dot-changed"></span>Changes
+                        </button>
+                        <button class="tab-btn" data-category="Deprecation">
+                            <span class="dot dot-deprecation"></span>Deprecations
+                        </button>
+                        <button class="tab-btn" data-category="Note">
+                            <span class="dot dot-note"></span>Notes
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Feed Updates Wrapper -->
+                <div class="feed-wrapper">
+                    <!-- Loading Spinner Overlay -->
+                    <div id="loading-spinner" class="loading-overlay">
+                        <div class="spinner-container">
+                            <div class="spinner"></div>
+                            <p>Fetching latest BigQuery updates...</p>
+                        </div>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div id="error-alert" class="alert alert-error" style="display: none;">
+                        <i class="fa-solid fa-circle-exclamation alert-icon"></i>
+                        <div class="alert-content">
+                            <h4>Failed to load updates</h4>
+                            <p id="error-message">Error message text here</p>
+                            <button id="btn-retry" class="btn btn-primary btn-sm">Retry</button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="empty-state" class="empty-state" style="display: none;">
+                        <i class="fa-solid fa-newspaper empty-icon"></i>
+                        <h3>No updates found</h3>
+                        <p>Try refining your search or category filters.</p>
+                    </div>
+
+                    <!-- The Feed -->
+                    <div id="updates-feed" class="updates-feed">
+                        <!-- Dynamic updates cards will be injected here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Detailed View of Selected Update -->
+            <section class="detail-section" id="detail-section">
+                <!-- Select an item placeholder -->
+                <div class="no-selection-card" id="no-selection-card">
+                    <div class="selection-arrow">
+                        <i class="fa-solid fa-arrow-left pulse-animation"></i>
+                    </div>
+                    <i class="fa-solid fa-eye-slash placeholder-icon"></i>
+                    <h3>No Update Selected</h3>
+                    <p>Select an update from the feed to view full details, access reference links, and share on Twitter.</p>
+                </div>
+
+                <!-- Detail Content (hidden initially) -->
+                <div class="detail-card" id="detail-card" style="display: none;">
+                    <div class="detail-header">
+                        <div class="detail-meta">
+                            <span id="detail-badge" class="badge">Badge</span>
+                            <span id="detail-date" class="detail-date"><i class="fa-regular fa-calendar"></i> Date</span>
+                        </div>
+                        <h2 id="detail-title">June 15, 2026</h2>
+                    </div>
+
+                    <div class="detail-body" id="detail-body">
+                        <!-- HTML content parsed from the feed will go here -->
+                    </div>
+
+                    <div class="detail-footer">
+                        <div class="action-buttons">
+                            <button id="btn-tweet" class="btn btn-tweet">
+                                <i class="fa-brands fa-x-twitter"></i>
+                                <span>Tweet Update</span>
+                            </button>
+                            <a id="btn-doc-link" href="#" target="_blank" class="btn btn-secondary">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                <span>Official Docs</span>
+                            </a>
+                            <button id="btn-copy" class="btn btn-outline" title="Copy text to clipboard">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>Copy Text</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i id="toast-icon" class="fa-solid fa-check"></i>
+        <span id="toast-message">Copied to clipboard!</span>
+    </div>
+
+    <!-- Client Script -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
