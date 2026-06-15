@@ -11,6 +11,8 @@ let updatesState = {
 // DOM Elements
 const elements = {
     btnRefresh: document.getElementById('btn-refresh'),
+    btnThemeToggle: document.getElementById('btn-theme-toggle'),
+    btnExport: document.getElementById('btn-export'),
     btnRetry: document.getElementById('btn-retry'),
     lastUpdated: document.getElementById('last-updated'),
     searchInput: document.getElementById('search-input'),
@@ -41,6 +43,7 @@ const elements = {
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     initEventListeners();
     fetchUpdates(false); // Fetch initially using cache if available
 });
@@ -50,6 +53,9 @@ function initEventListeners() {
     // Refresh button
     elements.btnRefresh.addEventListener('click', () => fetchUpdates(true));
     elements.btnRetry.addEventListener('click', () => fetchUpdates(true));
+    
+    // Export CSV button
+    elements.btnExport.addEventListener('click', exportToCSV);
     
     // Search input
     elements.searchInput.addEventListener('input', handleSearch);
@@ -206,9 +212,19 @@ function renderFeed() {
                     <span class="badge ${badgeClass}">${update.type}</span>
                     <span class="card-date">${update.date}</span>
                 </div>
+                <button class="card-copy-btn" title="Copy to clipboard">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
             </div>
             <div class="card-excerpt">${escapeHtml(excerpt)}</div>
         `;
+        
+        // Bind copy button click (stop propagation to avoid selecting card)
+        const copyBtn = card.querySelector('.card-copy-btn');
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            copyUpdateTextById(update.id);
+        });
         
         card.addEventListener('click', () => selectUpdate(update.id));
         elements.updatesFeed.appendChild(card);
@@ -303,8 +319,14 @@ function tweetSelectedUpdate() {
 }
 
 // Copy Selected Update Text to Clipboard
-async function copySelectedUpdateText() {
-    const update = updatesState.all.find(u => u.id === updatesState.selectedId);
+function copySelectedUpdateText() {
+    if (!updatesState.selectedId) return;
+    copyUpdateTextById(updatesState.selectedId);
+}
+
+// Copy a specific update text to clipboard by ID
+async function copyUpdateTextById(id) {
+    const update = updatesState.all.find(u => u.id === id);
     if (!update) return;
     
     const clipboardText = `[BigQuery ${update.type} - ${update.date}]\n\n${update.text}\n\nLink: ${update.link}`;
@@ -315,6 +337,88 @@ async function copySelectedUpdateText() {
     } catch (err) {
         console.error("Could not copy text: ", err);
         showToast("Failed to copy text", "fa-xmark", "#ef4444");
+    }
+}
+
+// Export filtered list of updates to CSV
+function exportToCSV() {
+    const { filtered, activeCategory, searchQuery } = updatesState;
+    if (filtered.length === 0) {
+        showToast("No updates to export", "fa-circle-exclamation", "#ef4444");
+        return;
+    }
+    
+    // Header
+    let csvContent = "Date,Type,Text,Link\n";
+    
+    filtered.forEach(update => {
+        const escapeCsv = (text) => {
+            if (text === null || text === undefined) return '';
+            const stringified = String(text);
+            return `"${stringified.replace(/"/g, '""')}"`;
+        };
+        
+        const row = [
+            escapeCsv(update.date),
+            escapeCsv(update.type),
+            escapeCsv(update.text),
+            escapeCsv(update.link)
+        ].join(",");
+        
+        csvContent += row + "\n";
+    });
+    
+    // Create Blob and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    let filename = "bigquery_release_notes";
+    if (activeCategory !== 'all') {
+        filename += `_${activeCategory.toLowerCase()}`;
+    }
+    if (searchQuery) {
+        const sanitizedQuery = searchQuery.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        filename += `_search_${sanitizedQuery}`;
+    }
+    filename += ".csv";
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast(`Exported ${filtered.length} updates!`, "fa-file-excel", "#10b981");
+}
+
+// Dark/Light Theme Initialization
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        updateThemeIcon('light');
+    } else {
+        document.body.classList.remove('light-theme');
+        updateThemeIcon('dark');
+    }
+    
+    elements.btnThemeToggle.addEventListener('click', () => {
+        const isLight = document.body.classList.toggle('light-theme');
+        const newTheme = isLight ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+    });
+}
+
+// Update Theme Toggle Button Icon
+function updateThemeIcon(theme) {
+    const themeIcon = elements.btnThemeToggle.querySelector('i');
+    if (theme === 'light') {
+        themeIcon.className = 'fa-solid fa-sun';
+    } else {
+        themeIcon.className = 'fa-solid fa-moon';
     }
 }
 
